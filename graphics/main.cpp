@@ -33,44 +33,10 @@ NS::SharedPtr<MTL::Buffer> floatVectorToDeviceBuffer(NS::SharedPtr<MTL::Device> 
     return payload;
 }
 
-//std::vector<float> executeOnGPU(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::ComputeCommandEncoder> encoder, NS::SharedPtr<MTL::Function> function, std::vector<float> a, std::vector<float> b, std::vector<float> &res) {
-//    NS::Error* err = nil;
-//    MTL::ComputePipelineState* pipelineState = device->newComputePipelineState(function.get(), &err);
-////    NS::TransferPtr<MTL::ComputePipelineState> pipelineState = NS::TransferPtr<MTL::ComputePipelineState>(MTL::ComputePipelineState(function.get(), &res));
-//    encoder->setComputePipelineState(pipelineState);
-//    MTL::Size threadsPerThreadgroup = MTL::Size(1024,1024,1024);
-//    
-//    std::vector<float> concatArray = {};
-//    for(auto el : a) {
-//        concatArray.push_back(el);
-//    }
-//    
-//    for(auto el : b) {
-//        concatArray.push_back(el);
-//    }
-//        
-//    encoder->dispatchThreadgroups(device->newBuffer(&concatArray, concatArray.size() * sizeof(float), MTL::ResourceOptions()), 1024, threadsPerThreadgroup);
-//    return res;
-//}
-//
+void executeOnGPU(NS::SharedPtr<MTL::Device> device, MTL::CommandQueue* commandQueue, NS::SharedPtr<MTL::Function> function, NS::SharedPtr<MTL::Buffer> bufferA,
+    NS::SharedPtr<MTL::Buffer> bufferB, NS::SharedPtr<MTL::Buffer> bufferResult) {
 
-/*
- NS::Error* error = nullptr;
- NS::SharedPtr<MTL::ComputePipelineState> pipelineState = NS::TransferPtr<MTL::ComputePipelineState>(device->newComputePipelineState(function.get(), &error));
- 
- CHECK_ERROR(error);
- computeCommandEncoder->setComputePipelineState(pipelineState.get());
- 
- MTL::Size threadsPerThreadgroup = MTL::Size(1024, 1, 1);
- MTL::Size threadGroupsPerGrid = MTL::Size(1, 1, 1);
- 
- computeCommandEncoder->dispatchThreadgroups(threadGroupsPerGrid, threadsPerThreadgroup);
- computeCommandEncoder->endEncoding();
- commandBuffer->commit();
- commandBuffer->waitUntilCompleted
- */
-
-void executeOnGPU(NS::SharedPtr<MTL::Device> device, MTL::CommandBuffer* commandBuffer, NS::SharedPtr<MTL::Function> function, NS::SharedPtr<MTL::Buffer> bufferA, NS::SharedPtr<MTL::Buffer> bufferB, NS::SharedPtr<MTL::Buffer> bufferResult) {
+    MTL::CommandBuffer* commandBuffer = commandQueue->commandBuffer();
     MTL::ComputeCommandEncoder* computeCommandEncoder = commandBuffer->computeCommandEncoder();
     
     computeCommandEncoder->setBuffer(bufferA.get(), 0, 0);
@@ -107,12 +73,15 @@ int main(int argc, const char * argv[]) {
     NS::SharedPtr<MTL::Device> device = NS::TransferPtr<MTL::Device>(MTLCreateSystemDefaultDevice());
     NS::SharedPtr<MTL::Library> kernelLibrary = loadKernelLibary(device, KERNEL_SOURCE);
     
-    NS::SharedPtr<MTL::Function> function = NS::TransferPtr<MTL::Function>(
+    NS::SharedPtr<MTL::Function> functionVecAdd = NS::TransferPtr<MTL::Function>(
             kernelLibrary->newFunction(NS::String::string("vec_add", NS::UTF8StringEncoding))
            );
     
+    NS::SharedPtr<MTL::Function> functionVecMultiply = NS::TransferPtr<MTL::Function>(
+                                                                                      kernelLibrary->newFunction(NS::String::string("vec_multiply", NS::UTF8StringEncoding))
+                                                                                      );
+    
     MTL::CommandQueue* commandQueue = device->newCommandQueue();
-    MTL::CommandBuffer* commandBuffer = commandQueue->commandBuffer();
     
     std::vector<float> a(1024, 1.0f);
     std::vector<float> b(1024, 2.0f);
@@ -122,9 +91,7 @@ int main(int argc, const char * argv[]) {
     auto bufferB = floatVectorToDeviceBuffer(device, b);
     auto bufferResult = floatVectorToDeviceBuffer(device, result);
     
-    executeOnGPU(device, commandBuffer, function, bufferA, bufferB, bufferResult);
-    
-    std::cout << "Calculated" << "\n";
+    executeOnGPU(device, commandQueue, functionVecAdd, bufferA, bufferB, bufferResult);
     
     auto contents = bufferResult->contents();
     std::copy(static_cast<float*>(contents), static_cast<float*>(contents) + result.size(), result.begin());
@@ -132,6 +99,28 @@ int main(int argc, const char * argv[]) {
     for(auto el : result) {
         std::cout << el << " ";
     }
+    
+    std::cout << "Calculated 1" << "\n";
+    
+    std::vector<float> a2(1024, 1.0f);
+    std::vector<float> b2(1024, 2.0f);
+    std::vector<float> result2(1024, 0.0f);
+    
+    auto bufferA2 = floatVectorToDeviceBuffer(device, a2);
+    auto bufferB2 = floatVectorToDeviceBuffer(device, b2);
+    auto bufferResult2 = floatVectorToDeviceBuffer(device, result2);
+    
+    executeOnGPU(device, commandQueue, functionVecMultiply, bufferA2, bufferB2, bufferResult2);
+    
+    contents = bufferResult2->contents();
+    std::copy(static_cast<float*>(contents), static_cast<float*>(contents) + result2.size(), result2.begin());
+    
+    for(auto el : result2) {
+        std::cout << el << " ";
+    }
+    
+    std::cout << "Calculated 2" << "\n";
+    
     std::cout << "\n";
     
 

@@ -33,7 +33,7 @@ NS::SharedPtr<MTL::Buffer> floatVectorToDeviceBuffer(NS::SharedPtr<MTL::Device> 
     return payload;
 }
 
-void executeOnGPU(NS::SharedPtr<MTL::Device> device, MTL::CommandQueue* commandQueue, NS::SharedPtr<MTL::Function> function, NS::SharedPtr<MTL::Buffer> bufferA,
+void executeOnGPU(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::CommandQueue> commandQueue, NS::SharedPtr<MTL::Function> function, NS::SharedPtr<MTL::Buffer> bufferA,
     NS::SharedPtr<MTL::Buffer> bufferB, NS::SharedPtr<MTL::Buffer> bufferResult) {
 
     MTL::CommandBuffer* commandBuffer = commandQueue->commandBuffer();
@@ -60,28 +60,10 @@ void executeOnGPU(NS::SharedPtr<MTL::Device> device, MTL::CommandQueue* commandQ
     return;
 }
 
-void test() {
-    NS::Error* testError = nullptr;
-    CHECK_ERROR(testError);
-}
-
-int main(int argc, const char * argv[]) {
-    test();
-        
-    std::cout << "Starting to run GPU calculations on Apple Sillicon" << "\n";
-    
-    NS::SharedPtr<MTL::Device> device = NS::TransferPtr<MTL::Device>(MTLCreateSystemDefaultDevice());
-    NS::SharedPtr<MTL::Library> kernelLibrary = loadKernelLibary(device, KERNEL_SOURCE);
-    
+void executeAdd(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::CommandQueue> commandQueue, NS::SharedPtr<MTL::Library> kernelLibrary) {
     NS::SharedPtr<MTL::Function> functionVecAdd = NS::TransferPtr<MTL::Function>(
             kernelLibrary->newFunction(NS::String::string("vec_add", NS::UTF8StringEncoding))
            );
-    
-    NS::SharedPtr<MTL::Function> functionVecMultiply = NS::TransferPtr<MTL::Function>(
-                                                                                      kernelLibrary->newFunction(NS::String::string("vec_multiply", NS::UTF8StringEncoding))
-                                                                                      );
-    
-    MTL::CommandQueue* commandQueue = device->newCommandQueue();
     
     std::vector<float> a(1024, 1.0f);
     std::vector<float> b(1024, 2.0f);
@@ -101,8 +83,14 @@ int main(int argc, const char * argv[]) {
     }
     
     std::cout << "Calculated 1" << "\n";
+}
+
+void executeMultiply(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::CommandQueue> commandQueue, NS::SharedPtr<MTL::Library> kernelLibrary) {
+    NS::SharedPtr<MTL::Function> functionVecMultiply = NS::TransferPtr<MTL::Function>(
+                                                                                      kernelLibrary->newFunction(NS::String::string("vec_multiply", NS::UTF8StringEncoding))
+                                                                                      );
     
-    std::vector<float> a2(1024, 1.0f);
+    std::vector<float> a2(1024, 2.0f);
     std::vector<float> b2(1024, 2.0f);
     std::vector<float> result2(1024, 0.0f);
     
@@ -112,7 +100,7 @@ int main(int argc, const char * argv[]) {
     
     executeOnGPU(device, commandQueue, functionVecMultiply, bufferA2, bufferB2, bufferResult2);
     
-    contents = bufferResult2->contents();
+    auto contents = bufferResult2->contents();
     std::copy(static_cast<float*>(contents), static_cast<float*>(contents) + result2.size(), result2.begin());
     
     for(auto el : result2) {
@@ -120,9 +108,27 @@ int main(int argc, const char * argv[]) {
     }
     
     std::cout << "Calculated 2" << "\n";
-    
-    std::cout << "\n";
-    
+}
 
+void test() {
+    NS::Error* testError = nullptr;
+    CHECK_ERROR(testError);
+}
+
+int main(int argc, const char * argv[]) {
+    test();
+        
+    std::cout << "Starting to run GPU calculations on Apple Sillicon" << "\n";
+    
+    NS::SharedPtr<MTL::Device> device = NS::TransferPtr<MTL::Device>(MTLCreateSystemDefaultDevice());
+    NS::SharedPtr<MTL::Library> kernelLibrary = loadKernelLibary(device, KERNEL_SOURCE);
+    
+    NS::SharedPtr<MTL::CommandQueue> commandQueue = NS::TransferPtr<MTL::CommandQueue>(device->newCommandQueue());
+    
+    executeAdd(device, commandQueue, kernelLibrary);
+    executeMultiply(device, commandQueue, kernelLibrary);
+
+    std::cout << "Ended calculations" << "\n";
+    
     return EXIT_SUCCESS;
 }

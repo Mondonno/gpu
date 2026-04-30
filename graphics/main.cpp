@@ -85,9 +85,9 @@ void executeAdd(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::CommandQue
     std::cout << "Calculated 1" << "\n";
 }
 
-void executeMultiply(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::CommandQueue> commandQueue, NS::SharedPtr<MTL::Library> kernelLibrary) {
+void executeMultiplyByElements(NS::SharedPtr<MTL::Device> device, NS::SharedPtr<MTL::CommandQueue> commandQueue, NS::SharedPtr<MTL::Library> kernelLibrary) {
     NS::SharedPtr<MTL::Function> functionVecMultiply = NS::TransferPtr<MTL::Function>(
-                                                                                      kernelLibrary->newFunction(NS::String::string("vec_multiply", NS::UTF8StringEncoding))
+                                                                                      kernelLibrary->newFunction(NS::String::string("vec_multiply_by_elements", NS::UTF8StringEncoding))
                                                                                       );
     
     std::vector<float> a2(1024, 2.0f);
@@ -126,7 +126,7 @@ int main(int argc, const char * argv[]) {
     NS::SharedPtr<MTL::CommandQueue> commandQueue = NS::TransferPtr<MTL::CommandQueue>(device->newCommandQueue());
     
     executeAdd(device, commandQueue, kernelLibrary);
-    executeMultiply(device, commandQueue, kernelLibrary);
+    executeMultiplyByElements(device, commandQueue, kernelLibrary);
 
     std::cout << "Ended calculations" << "\n";
     
